@@ -2,7 +2,7 @@
 // Libri e appunti NON passano di qui: stanno in IndexedDB sul dispositivo.
 // prefisso diverso per la versione amici: le due app condividono il dominio
 const P = self.registration.scope.includes('/margini-app/') ? 'margini-app-' : 'margini-';
-const V = P + 'v10';
+const V = P + 'v11';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'icon-180.png', 'icon-192.png', 'icon-512.png',

@@ -92,6 +92,30 @@ svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .badge{display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-weight:600}
 .badge svg.i{width:14px;height:14px}
 
+/* schermata di accesso */
+.gate{position:fixed;inset:0;z-index:45;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:calc(20px + var(--st)) 16px calc(20px + var(--sb));overflow:auto}
+.gcard{width:min(400px,100%);text-align:center}
+.gcard h2{margin:14px 0 6px;font-size:24px}
+.gcard .txt{margin-bottom:10px;height:50px}
+.gbtn{width:100%;height:48px;justify-content:center;margin-top:6px;font-size:16px}
+.glink{margin-top:12px;color:var(--accent);font-weight:600}
+.gmsg{min-height:22px;margin:12px 0 0;font-weight:600;color:var(--ink-2)}
+.gmsg.err{color:var(--danger)}
+
+/* telefono: barre più compatte */
+@media (max-width:620px){
+  .bar{gap:2px;padding-left:calc(6px + var(--sl));padding-right:calc(6px + var(--sr))}
+  .bar h1{display:none}
+  .seg button{padding:0 9px;font-size:14px}
+  #btnImport{padding:0 11px}
+  #btnImport span{display:none}
+  #v-read [data-reload],#zOut,#zIn{display:none}
+  #v-read .ib{width:40px}
+  .pill{padding:6px 8px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px}
+  .pad{padding-left:calc(12px + var(--sl));padding-right:calc(12px + var(--sr))}
+}
+
 /* account */
 #btnSync.on{color:var(--accent)}
 #btnSync.warn{color:var(--danger)}
@@ -245,6 +269,22 @@ textarea.note:focus,input.txt:focus{border-color:var(--accent)}
 </head>
 <body>
 
+<!-- ACCESSO (app Android) -->
+<section id="gate" class="gate" hidden>
+  <div class="gcard">
+    <img src="icon-180.png" width="72" height="72" alt="" style="border-radius:18px">
+    <h2>Benvenuto in Margini</h2>
+    <p class="muted" style="margin:0 0 16px">Accedi o crea un account per iniziare. I tuoi libri restano sul telefono; appunti e mappe si salvano anche nel tuo account.</p>
+    <input class="txt" id="gMail" type="email" autocomplete="email" inputmode="email" placeholder="Email">
+    <input class="txt" id="gPass" type="password" autocomplete="current-password" placeholder="Password (almeno 8 caratteri)">
+    <button class="btn primary gbtn" id="gIn">Accedi</button>
+    <button class="btn gbtn" id="gUp">Crea account</button>
+    <button class="glink" id="gReset">Password dimenticata?</button>
+    <p class="gmsg" id="gMsg" role="status"></p>
+    <p class="muted" style="font-size:12px;margin:14px 0 0">Server in Europa (Francoforte). Solo tu vedi i tuoi dati e puoi eliminare l'account quando vuoi.</p>
+  </div>
+</section>
+
 <!-- LIBRERIA -->
 <section id="v-lib" class="view">
   <header class="bar">
@@ -352,7 +392,7 @@ textarea.note:focus,input.txt:focus{border-color:var(--accent)}
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 // dentro l'app Android (Capacitor) alcune cose funzionano in modo diverso da Safari
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 // la versione per gli amici (/margini-app/) sta sullo stesso dominio della 1.9 personale: memorie separate
@@ -2113,6 +2153,8 @@ async function runOcr(pages, checkText) {
 const SB_URL = 'https://wncmrjxwdgepclwfsyia.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduY21yanh3ZGdlcGNsd2ZzeWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTY1MjUsImV4cCI6MjEwODA5MjUyNX0.3KgM6_42b4mx2ML7_C17ysv4NTdaTUM_4LJbyHzt7LQ';
 const WEB_URL = 'https://difrancoantonio11-cmyk.github.io/margini-app/';
+// nell'app Android i link delle email riaprono l'app stessa, senza passare da un sito
+const AUTH_REDIRECT = NATIVE ? 'app.margini.reader://auth' : WEB_URL;
 const SYNC = { sb: null, user: null, busy: false, again: false, last: 0, err: null, timer: 0 };
 const outKey = () => 'mg-outbox';
 function loadOutbox() { try { return JSON.parse(lsGet(outKey(), '{}')) || {}; } catch { return {}; } }
@@ -2135,6 +2177,7 @@ function sbClient() {
   SYNC.sb.auth.onAuthStateChange((ev, session) => {
     const before = SYNC.user && SYNC.user.id;
     SYNC.user = session ? session.user : null;
+    if (GATE) $('#gate').hidden = !!SYNC.user;
     updSyncBtn();
     if (ev === 'PASSWORD_RECOVERY') setTimeout(newPasswordSheet, 300);
     if (SYNC.user && SYNC.user.id !== before) scheduleSync(300);
@@ -2280,7 +2323,7 @@ function accountSheet() {
   el.querySelector('[data-a=up]').onclick = async () => {
     if (pass().length < 8) { toast('La password deve avere almeno 8 caratteri'); return; }
     busy(true);
-    const { data, error } = await sb.auth.signUp({ email: mail(), password: pass(), options: { emailRedirectTo: WEB_URL } });
+    const { data, error } = await sb.auth.signUp({ email: mail(), password: pass(), options: { emailRedirectTo: AUTH_REDIRECT } });
     busy(false);
     if (error) { toast('Non riuscito: ' + error.message); return; }
     closeSheet();
@@ -2288,7 +2331,7 @@ function accountSheet() {
   };
   el.querySelector('[data-a=reset]').onclick = async () => {
     if (!mail()) { toast('Scrivi prima la tua email'); return; }
-    const { error } = await sb.auth.resetPasswordForEmail(mail(), { redirectTo: WEB_URL });
+    const { error } = await sb.auth.resetPasswordForEmail(mail(), { redirectTo: AUTH_REDIRECT });
     toast(error ? 'Non riuscito: ' + error.message : "Ti ho mandato un'email per scegliere una nuova password", null, null, 8000);
   };
   setTimeout(() => $('#acMail', el).focus(), 80);
@@ -2300,9 +2343,71 @@ async function newPasswordSheet() {
   const { error } = await sbClient().auth.updateUser({ password: p });
   toast(error ? 'Non riuscito: ' + error.message : 'Password aggiornata');
 }
+// app Android: un link dell'email ha riaperto Margini con i dati di accesso
+async function handleAuthLink(url) {
+  if (!url || !url.startsWith('app.margini.reader://')) return;
+  const sb = sbClient(); if (!sb) return;
+  const q = new URLSearchParams((url.split('#')[1] || url.split('?')[1] || ''));
+  if (q.get('error_description')) { toast('Link non valido o scaduto: richiedine uno nuovo'); return; }
+  const at = q.get('access_token'), rt = q.get('refresh_token'), code = q.get('code');
+  let error = null;
+  if (at && rt) ({ error } = await sb.auth.setSession({ access_token: at, refresh_token: rt }));
+  else if (code) ({ error } = await sb.auth.exchangeCodeForSession(code));
+  else return;
+  if (error) { toast('Accesso dal link non riuscito: ' + error.message); return; }
+  if (q.get('type') === 'recovery') setTimeout(newPasswordSheet, 300);
+  else toast('Email confermata: sei dentro');
+}
+// nell'app l'account è obbligatorio: così ogni utente è registrato e si può contare
+const GATE = NATIVE || new URLSearchParams(location.search).has('gate');
+function setupGate(sb) {
+  const msg = (t, err) => { const m = $('#gMsg'); m.textContent = t; m.classList.toggle('err', !!err); };
+  const mail = () => $('#gMail').value.trim(), pass = () => $('#gPass').value;
+  const busy = on => ['#gIn', '#gUp', '#gReset'].forEach(k => $(k).disabled = on);
+  const offline = () => !navigator.onLine && (msg('Serve internet per accedere la prima volta', true), true);
+  $('#gIn').onclick = async () => {
+    if (offline()) return;
+    if (!mail() || !pass()) return msg('Scrivi email e password', true);
+    busy(true); msg('Accesso in corso…');
+    const { error } = await sb.auth.signInWithPassword({ email: mail(), password: pass() });
+    busy(false);
+    if (error) return msg(/confirm/i.test(error.message) ? "Prima conferma l'email: apri il link che ti ho mandato" : 'Email o password sbagliate', true);
+    msg(''); toast('Benvenuto: sincronizzo i tuoi appunti…');
+  };
+  $('#gUp').onclick = async () => {
+    if (offline()) return;
+    if (!/^\S+@\S+\.\S+$/.test(mail())) return msg("Controlla l'email", true);
+    if (pass().length < 8) return msg('La password deve avere almeno 8 caratteri', true);
+    busy(true); msg('Creo il tuo account…');
+    const { data, error } = await sb.auth.signUp({ email: mail(), password: pass(), options: { emailRedirectTo: AUTH_REDIRECT } });
+    busy(false);
+    if (error) return msg('Non riuscito: ' + error.message, true);
+    if (data.session) return msg('');
+    msg("Ti ho mandato un'email: tocca il link per confermare e Margini si apre da solo. Poi, se serve, accedi qui.");
+  };
+  $('#gReset').onclick = async () => {
+    if (offline()) return;
+    if (!mail()) return msg('Scrivi prima la tua email', true);
+    busy(true);
+    const { error } = await sb.auth.resetPasswordForEmail(mail(), { redirectTo: AUTH_REDIRECT });
+    busy(false);
+    msg(error ? 'Non riuscito: ' + error.message : "Ti ho mandato un'email: toccando il link sceglierai una nuova password", !!error);
+  };
+  $('#gPass').onkeydown = e => { if (e.key === 'Enter') $('#gIn').click(); };
+}
 function initSync() {
   const sb = sbClient(); if (!sb) return;
-  sb.auth.getSession().then(({ data }) => { SYNC.user = data.session ? data.session.user : null; updSyncBtn(); if (SYNC.user) scheduleSync(800); });
+  const AppPlugin = NATIVE && window.Capacitor.Plugins.App;
+  if (AppPlugin) {
+    AppPlugin.addListener('appUrlOpen', e => handleAuthLink(e.url));
+    AppPlugin.getLaunchUrl().then(r => r && handleAuthLink(r.url)).catch(() => {});
+  }
+  sb.auth.getSession().then(({ data }) => {
+    SYNC.user = data.session ? data.session.user : null; updSyncBtn();
+    if (GATE) $('#gate').hidden = !!SYNC.user;
+    if (SYNC.user) scheduleSync(800);
+  });
+  if (GATE) setupGate(sb);
   addEventListener('online', () => scheduleSync(1000));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSync(800); });
   setInterval(() => { if (!document.hidden) scheduleSync(0); }, 90000);
