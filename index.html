@@ -392,7 +392,7 @@ textarea.note:focus,input.txt:focus{border-color:var(--accent)}
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
 
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.1.1';
 // dentro l'app Android (Capacitor) alcune cose funzionano in modo diverso da Safari
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 // la versione per gli amici (/margini-app/) sta sullo stesso dominio della 1.9 personale: memorie separate
@@ -2508,6 +2508,28 @@ addEventListener('drop', e => {
     }).catch(() => {});
   }
 })();
+</script>
+<div id="moved" style="position:fixed;inset:0;z-index:100;background:rgba(10,12,16,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--surface);color:var(--ink);border-radius:18px;max-width:440px;width:100%;padding:22px 20px;box-shadow:var(--shadow)">
+    <h2 style="margin:0 0 8px;font-size:20px">Margini si è spostata</h2>
+    <p style="margin:0 0 10px">Questa versione non riceve più aggiornamenti. La nuova è su <b>margini.margini-cf.workers.dev/app</b>.</p>
+    <p class="muted" style="margin:0 0 6px">Per portare con te i libri:</p>
+    <ol class="muted" style="margin:0 0 14px;padding-left:20px">
+      <li>tocca <b>Esporta tutto</b> e salva il file ZIP;</li>
+      <li>apri la nuova versione e accedi con la stessa email;</li>
+      <li>dal menu ⋯ scegli <b>Ripristina un backup</b> e seleziona lo ZIP.</li>
+    </ol>
+    <p class="muted" style="margin:0 0 14px;font-size:14px">Gli appunti tornano anche dal tuo account; il backup serve per i file dei libri.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn primary" id="movedExp" style="justify-content:center">Esporta tutto</button>
+      <a class="btn" href="https://margini.margini-cf.workers.dev/app/" style="justify-content:center;text-decoration:none">Apri la nuova versione</a>
+      <button class="btn" id="movedLater" style="justify-content:center;border:0;background:none;color:var(--accent)">Più tardi</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('movedExp').onclick = () => { document.getElementById('moved').style.display = 'none'; exportBackup(true); };
+document.getElementById('movedLater').onclick = () => { document.getElementById('moved').style.display = 'none'; };
 </script>
 </body>
 </html>
